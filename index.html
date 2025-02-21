@@ -437,11 +437,11 @@
                                 } else {
                                     set(ref(database, "rooms/" + key), null);
                                 }
-                                newText.textContent = value.roomName + "  " + value.currentPlayers + "/" + value.maxPlayers;
                                 newText.style.display = "inline-block";
                                 if (value.start) { newText.style.color = "green"; }
                                 newText.style.marginBottom = "0px";
                                 if (value.hardMode) {
+                                    newText.textContent = "HARD MODE " + value.roomName + "  " + value.currentPlayers + "/" + value.maxPlayers;
                                     newText.style.color = "red";
                                 }
                                 document.getElementById("rooms").appendChild(newText);
