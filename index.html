@@ -1,5 +1,6 @@
 <html>
     <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
             html { overflow: hidden; }
             #player { transition: 0.1s ease; left: 48%; height: 50px; width: 50px; background-color: blue; position: absolute; margin: 0px; }
@@ -220,6 +221,7 @@
                 delete keys[event.key];
             });
             let count = 0;
+            let count2 = 0;
             let pTime = 0;
             const f = 200;
             let checkedFastTime = false;
@@ -331,44 +333,47 @@
                                 });
                         }
                     }
-                    get(ref(database, "rooms/" + currentRoomNameKey + "/players"))
-                        .then((snapshot) => {
-                            if (snapshot.exists()) {
-                                let players = snapshot.val();
-                                for (let playerID in players) {
-                                    if (players[playerID].playerID !== pos.playerID) {
-                                        let otherPlayer = document.getElementById("player" + players[playerID].playerID);
-                                        let otherPlayerUsername = document.getElementById("player" + players[playerID].playerID + "username");
-                                        if (!otherPlayerUsername) {
-                                            otherPlayerUsername = document.createElement("p");
+                    if (count2 > 10) {
+                        count2 = 0;
+                        get(ref(database, "rooms/" + currentRoomNameKey + "/players"))
+                            .then((snapshot) => {
+                                if (snapshot.exists()) {
+                                    let players = snapshot.val();
+                                    for (let playerID in players) {
+                                        if (players[playerID].playerID !== pos.playerID) {
+                                            let otherPlayer = document.getElementById("player" + players[playerID].playerID);
+                                            let otherPlayerUsername = document.getElementById("player" + players[playerID].playerID + "username");
+                                            if (!otherPlayerUsername) {
+                                                otherPlayerUsername = document.createElement("p");
+                                                otherPlayerUsername.id = "player" + players[playerID].playerID + "username";
+                                                otherPlayerUsername.textContent = players[playerID].username;
+                                                otherPlayerUsername.style.width = "500px";
+                                                otherPlayerUsername.style.textAlign = "center";
+                                                otherPlayerUsername.style.position = "absolute";
+                                                otherPlayerUsername.style.transform = "translate(-45%, -200%)";
+                                            }
+                                            if (!otherPlayer) {
+                                                otherPlayer = document.createElement("div");
+                                                otherPlayer.id = "player" + players[playerID].playerID;
+                                                otherPlayer.style.position = "absolute";
+                                                otherPlayer.style.height = "50px";
+                                                otherPlayer.style.width = "50px";
+                                                otherPlayer.style.backgroundColor = "red";
+                                                otherPlayer.style.transition = "0.25s linear";
+                                                document.getElementById("game1").appendChild(otherPlayer);
+                                            }
+                                            if (players[playerID].dead) {
+                                                otherPlayer.style.transform = "scale(0)";
+                                            }
+                                            otherPlayer.style.left = players[playerID].posX + "%";
+                                            otherPlayer.style.bottom = players[playerID].posY + "%";
+                                            otherPlayer.appendChild(otherPlayerUsername);
                                         }
-                                        if (!otherPlayer) {
-                                            otherPlayer = document.createElement("div");
-                                        }
-                                        otherPlayer.id = "player" + players[playerID].playerID;
-                                        otherPlayer.style.position = "absolute";
-                                        otherPlayer.style.height = "50px";
-                                        otherPlayer.style.width = "50px";
-                                        otherPlayer.style.backgroundColor = "red";
-                                        otherPlayer.style.transition = "0.1s ease";
-                                        if (players[playerID].dead) {
-                                            otherPlayer.style.transform = "scale(0)";
-                                        }
-                                        otherPlayer.style.left = players[playerID].posX + "%";
-                                        otherPlayer.style.bottom = players[playerID].posY + "%";
-                                        document.getElementById("game1").appendChild(otherPlayer);
-                                        otherPlayerUsername.id = "player" + players[playerID].playerID + "username";
-                                        otherPlayerUsername.textContent = players[playerID].username;
-                                        otherPlayerUsername.style.width = "500px";
-                                        otherPlayerUsername.style.textAlign = "center";
-                                        otherPlayerUsername.style.position = "absolute";
-                                        otherPlayerUsername.style.transform = "translate(-45%, -200%)";
-                                        otherPlayer.appendChild(otherPlayerUsername);
                                     }
                                 }
-                            }
-                        });
-                    set(ref(database, "rooms/" + currentRoomNameKey + "/players/" + pos.playerID), pos);
+                            });
+                        set(ref(database, "rooms/" + currentRoomNameKey + "/players/" + pos.playerID), pos);
+                    }
                     document.getElementById("test").textContent = counter;
                     document.getElementById("test2").textContent = counterLimit;
                     player.style.bottom = pos.posY + "%";
@@ -398,6 +403,7 @@
                     getRooms();
                     count = 0;
                 }
+                count2++;
                 count++;
                 requestAnimationFrame(gameLoop);
             }
