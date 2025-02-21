@@ -372,6 +372,15 @@
                                     }
                                 }
                             });
+                        onChildRemoved(ref(database, "rooms/" + currentRoomNameKey + "/players"), (snapshot) => {
+                            let removedPlayer = snapshot.val();
+                            let oP = document.getElementById("player" + removedPlayer.playerID);
+                            let oPU = document.getElementById("player" + removedPlayer.playerID + "username");
+                            if (oP && oPU) {
+                                oP.remove();
+                                oPU.remove();
+                            }
+                        });
                         set(ref(database, "rooms/" + currentRoomNameKey + "/players/" + pos.playerID), pos);
                     }
                     document.getElementById("test").textContent = counter;
