@@ -4,11 +4,12 @@
         <style>
             html { overflow: hidden; }
             #player { z-index: 100; transition: 0.1s ease; left: 48%; height: 50px; width: 50px; background-color: blue; position: absolute; margin: 0px; }
-            #light { top: 40px; left: 48%; position: absolute; height: 50px; width: 50px; background-color: green; border-radius: 50%; transition: transform 0.5s ease; }
+            #light { text-align: center; font-size: 35px; top: 40px; left: 48%; position: absolute; height: 50px; width: 50px; background-color: green; border-radius: 50%; transition: transform 0.5s ease; }
             #shape1 { transition: 0.1s ease; background-color: rgba(0, 0, 0, 0.5); position: absolute; width: 50px; height: 100px; }
             #playerUsername { transform: translate(-225px, -50px); width: 500px; text-align: center; }
-            #chatArea { height: 400px; width: 500px; position: absolute; right: 0px; top: 0px; overflow-y: scroll; }
-            #chatAreaInput { width: 490px; position: absolute; right: 0px; top: 400px; margin: 10px; }
+            #chatArea { height: 400px; width: 500px; position: absolute; overflow-y: scroll; }
+            #chatAreaInput { width: 490px; position: absolute; margin: 10px; }
+            #bar { height: 10px; width: 100%; background-color: gray; z-index: -10; position: absolute; top: 20%; margin: 0px; left: 0px; }
             @keyframes shake {
                 0% { transform: translateX(0); }
                 25% { transform: translateX(-5px); }
@@ -16,7 +17,7 @@
                 75% { transform: translateX(-5px); }
                 100% { transform: translateX(0); }
             }
-        </style>
+        </style>    
     </head>
     <body>
         <div id="createRoom" style="display: none;">
@@ -57,6 +58,7 @@
                 <p id="test" style="margin: 0px;"></p>
                 <p id="test2" style="margin: 0px;"></p>
             </div>
+            <div id="bar"></div>
         </div>
         <div id="game2" style="display: none;">
             <div id="shape1"></div>
@@ -76,13 +78,13 @@
             };
             const app = initializeApp(firebaseConfig);
             const database = getDatabase(app);
-            let level = 0;
+            let level = 2;
             let player = document.getElementById("player");
             let shape1 = document.getElementById("shape1");
             let keys = {};
             let counter = 0;
             let redLight = false;
-            let counterLimit = Math.random() * 100 + 75;
+            let counterLimit = Math.random() * 100 + 100;
             let counting = true;
             let started = false;
             let owner = false;
@@ -91,6 +93,9 @@
             let currentRoomNameKey = null;
             let fastMode = false;
             let click = false;
+            let beatLevel1 = false;
+            let checkedBeatLevel1 = false;
+            let isSpectating = false;
             let pos = { owner: false, username: "", posX: Math.floor(Math.random() * (80 - 20 + 1)) + 20, playerID: Math.floor(Math.random() * (10000000000)) + 1, posY: 5, dead: false, level: 1 }
             let roomsRef = ref(database, "rooms");
             document.getElementById("roomRefresh").addEventListener("click", (event) => { getRooms(); })
@@ -121,6 +126,7 @@
                     return;
                 }
                 document.getElementById("chatArea").innerHTML = "";
+                document.getElementById("player").style.bottom = "5%";
                 push(roomsRef, {
                     ownerUsername: document.getElementById("createUsername").value,
                     roomName: document.getElementById("roomName").value,
@@ -128,7 +134,8 @@
                     currentPlayers: 1,
                     start: false,
                     redLight: false,
-                    hardMode: document.getElementById("hardMode").checked
+                    hardMode: document.getElementById("hardMode").checked,
+                    startedLevel1: false
                 })
                 get(roomsRef)
                     .then((snapshot) => {
@@ -153,6 +160,7 @@
                 inRoom = true;
                 document.getElementById("joiningRoomName").textContent = "joining room: " + currentRoomName;
                 push(ref(database, "/messages"), { username: "System", text: pos.username + " has joined the room", room: currentRoomName });
+                set(ref(database, "/messages"), null); 
             });
             document.getElementById("joiningRoomDelete").addEventListener("click", (event) => {
                 if (pos.owner) {
@@ -195,10 +203,8 @@
                                 }
                             }
                         });
-                    currentRoomName = "";
-                    currentRoomNameKey = "";
-                }
-            })
+                    }
+                })
             document.getElementById("joiningRoomStart").addEventListener("click", (event) => {
                 if (pos.owner) {
                     get(roomsRef)
@@ -230,6 +236,7 @@
                     } else if (chatInput.value != "") {
                         push(ref(database, "rooms/" + currentRoomNameKey + "/messages"), { username: pos.username, text: chatInput.value });
                         chatInput.value = "";
+                        set(ref(database, "/messages"), null); 
                     }
                 }
             });
@@ -240,6 +247,7 @@
             let count2 = 0;
             let pTime = 0;
             const f = 200;
+            let startedLight = false;
             let checkedFastTime = false;
             function press() { click = true; }
             function release() { click = false; }
@@ -255,11 +263,23 @@
                     document.getElementById("chat").style.display = "none";
                 }
                 if (level == -1 && inRoom) {
-                    document.getElementById("chat").style.right = "0px";
-                    document.getElementById("chat").style.top = "0px";
+                    document.getElementById("chatArea").style.right = "0px";
+                    document.getElementById("chatArea").style.top = "0px";
+                    document.getElementById("chatArea").style.removeProperty("left");
+                    document.getElementById("chatArea").style.removeProperty("bottom");
+                    document.getElementById("chatAreaInput").style.right = "0px";
+                    document.getElementById("chatAreaInput").style.top = "400px";
+                    document.getElementById("chatAreaInput").style.removeProperty("left");
+                    document.getElementById("chatAreaInput").style.removeProperty("bottom");
                 } else {
-                    document.getElementById("chat").style.left = "0px";
-                    document.getElementById("chat").style.bottom = "0px";
+                    document.getElementById("chatArea").style.left = "0px";
+                    document.getElementById("chatArea").style.bottom = "0px";
+                    document.getElementById("chatArea").style.removeProperty("right");
+                    document.getElementById("chatArea").style.removeProperty("top");
+                    document.getElementById("chatAreaInput").style.left = "0px";
+                    document.getElementById("chatAreaInput").style.bottom = "0px";
+                    document.getElementById("chatAreaInput").style.removeProperty("top");
+                    document.getElementById("chatAreaInput").style.removeProperty("right");
                 }
                 if (level == -1 && inRoom) {
                     document.getElementById("joiningRoom").style.display = "block";
@@ -300,6 +320,13 @@
                     onDisconnect(ref(database, "rooms/" + currentRoomNameKey)).remove();
                 }
                 if (level == 1 && inRoom) {
+                    if (parseFloat(player.style.bottom) > 80 && !checkedBeatLevel1) {
+                        checkedBeatLevel1 = true;
+                        beatLevel1 = true;
+                        console.log("beat level 1");
+                        push(ref(database, "/messages"), { username: "Quiet", text: pos.username + " has finished level 1!", room: currentRoomName });
+                        set(ref(database, "/messages"), null);
+                    }
                     if (!checkedFastTime) {
                         checkedFastTime = true;
                         get(ref(database, "rooms/" + currentRoomNameKey))
@@ -313,35 +340,69 @@
                             });
                     }
                     document.getElementById("game1").style.display = 'block';
-                    setTimeout(() => {
-                        if (!started) {
-                            started = true;
-                        }
-                    }, 100);
-                    if (started) {
-                        if (keys['w']) { pos.posY += e / 30; if (redLight) { pos.dead = true; player.style.transform = "scale(0)"; }}
-                        if (click) { pos.posY += e / 30; if (redLight) { pos.dead = true; player.style.transform = "scale(0)"; }}
-                        if (keys['m']) { document.getElementById("text").style.display = "block"; }
-                        if (counting) { counter += 1; }
-                        if (pos.owner) {
-                            if (counter > counterLimit && counting) {
-                                counting = false;
-                                document.getElementById("light").style.backgroundColor = "red";
-                                document.getElementById("light").style.transform = "scale(1.5)";
-                                set(ref(database, "rooms/" + currentRoomNameKey + "/redLight"), true);
-                                setTimeout(() => {
-                                    redLight = true;
-                                }, fastMode ? 300 : 500);
-                                setTimeout(() => {
-                                    document.getElementById("light").style.backgroundColor = "green";
-                                    document.getElementById("light").style.transform = "scale(1)";
-                                    counterLimit = Math.random() * 100 + 75;
-                                    counter = 0;
-                                    redLight = false;
-                                    counting = true;
-                                    set(ref(database, "rooms/" + currentRoomNameKey + "/redLight"), false);
-                                }, 3000);
+                    if (!startedLight) {
+                        startedLight = true;
+                        function countdown(step) {
+                            if (step > 0) {
+                                document.getElementById("light").textContent = step; 
+                                setTimeout(() => countdown(step - 1), 1000);
+                            } else {
+                                document.getElementById("light").textContent = "";
+                                set(ref(database, "rooms/" + currentRoomNameKey + "/startedLevel1"), true);
+                                started = true;
+                                redLight = false;
+                                document.getElementById("light").style.backgroundColor = "green";
+                                document.getElementById("light").style.transform = "scale(1)";
                             }
+                        }
+                        countdown(3);
+                    }
+                    get(ref(database, "rooms/" + currentRoomNameKey + "/startedLevel1"))
+                        .then((snapshot) => {
+                            if (snapshot.exists()) {
+                                let s = snapshot.val();
+                                if (s == true) {
+                                    started = true;
+                                    if (!startedLight) {
+                                        document.getElementById("light").style.backgroundColor = "green";
+                                        document.getElementById("light").style.transform = "scale(1)";
+                                    }
+                                } else {
+                                    started = false;
+                                    document.getElementById("light").style.backgroundColor = "red";
+                                    document.getElementById("light").style.transform = "scale(1.5)";
+                                }
+                            }
+                        })
+                    if (started) {
+                        if (!isSpectating) {
+                            player.style.display = "block";
+                            if (keys['w'] && !beatLevel1) { if (document.activeElement != document.getElementById('chatAreaInput')) { pos.posY += e / 30; if (redLight && !beatLevel1) { pos.dead = true; player.style.transform = "scale(0)"; }}}
+                            if (click && !beatLevel1) { pos.posY += e / 30; if (redLight && !beatLevel1) { pos.dead = true; player.style.transform = "scale(0)"; }}
+                            if (keys['m']) { document.getElementById("text").style.display = "block"; }
+                            if (counting) { counter += 1; }
+                            if (pos.owner) {
+                                if (counter > counterLimit && counting) {
+                                    counting = false;
+                                    document.getElementById("light").style.backgroundColor = "red";
+                                    document.getElementById("light").style.transform = "scale(1.5)";
+                                    set(ref(database, "rooms/" + currentRoomNameKey + "/redLight"), true);
+                                    setTimeout(() => {
+                                        redLight = true;
+                                    }, fastMode ? 300 : 500);
+                                    setTimeout(() => {
+                                        document.getElementById("light").style.backgroundColor = "green";
+                                        document.getElementById("light").style.transform = "scale(1)";
+                                        counterLimit = Math.random() * 100 + 100;
+                                        counter = 0;
+                                        redLight = false;
+                                        counting = true;
+                                        set(ref(database, "rooms/" + currentRoomNameKey + "/redLight"), false);
+                                    }, 3000);
+                                }
+                            }
+                        } else {
+                            player.style.display = "none";
                         }
                         if (!pos.owner) {
                             get(ref(database, "rooms/" + currentRoomNameKey + "/redLight"))
@@ -412,12 +473,16 @@
                                 oPU.remove();
                             }
                         });
-                        set(ref(database, "rooms/" + currentRoomNameKey + "/players/" + pos.playerID), pos);
+                        if (!isSpectating) {
+                            set(ref(database, "rooms/" + currentRoomNameKey + "/players/" + pos.playerID), pos);
+                        }
                     }
                     document.getElementById("test").textContent = counter;
                     document.getElementById("test2").textContent = counterLimit;
-                    player.style.bottom = pos.posY + "%";
-                    player.style.left = pos.posX + "%";
+                    if (!isSpectating) {
+                        player.style.bottom = pos.posY + "%";
+                        player.style.left = pos.posX + "%";
+                    }
                 } else {
                     document.getElementById("game1").style.display = 'none';
                 }
@@ -448,7 +513,7 @@
                 requestAnimationFrame(gameLoop);
             }
             window.addEventListener("beforeunload", (event) => {
-                    if (inRoom) {
+                    if (inRoom && !isSpectating) {
                         get(ref(database, "rooms/" + currentRoomNameKey))
                             .then((snapshot) => {
                                 if (snapshot.exists()) {
@@ -458,20 +523,8 @@
                                     set(ref(database, "rooms/" + currentRoomNameKey + "/players/" + pos.playerID), null);
                                 }
                             });
-                        get(ref(database, "/messages"))
-                            .then((snapshot) => {
-                                if (snapshot.exists()) {
-                                    let messages = snapshot.val();
-                                    for (let messageKey in messages) {
-                                        let message = messages[messageKey];
-                                        if (message.room === currentRoomName) {
-                                            set(ref(database, "/messages/" + messageKey), null);
-                                        }
-                                    }
-                                }
-                            });
                     }
-                    if (inRoom && pos.owner) {
+                    if (inRoom && pos.owner && !isSpectating) {
                         get(ref(database, "rooms/" + currentRoomNameKey))
                             .then((snapshot) => {
                                 if (snapshot.exists()) {
@@ -505,16 +558,18 @@
                                 document.getElementById("rooms").appendChild(newText);
                                 let newButton = document.createElement("button");
                                 newButton.textContent = "join";
+                                if (value.start) { newButton.textContent = "spectate"; }
                                 newButton.addEventListener("click", (event) => {
+                                    if (document.getElementById("joinUsername").value == "") {
+                                        document.getElementById("joinUsername").style.animation = "shake 0.5s";
+                                        document.getElementById("joinUsername").style.animationIterationCount = "2";
+                                        document.getElementById("joinUsername").addEventListener("animationend", () => {
+                                            document.getElementById("joinUsername").style.animation = "";
+                                        });
+                                        return;
+                                    }
+                                    if (newButton.textContent == "join") {
                                     if (!value.start) {
-                                        if (document.getElementById("joinUsername").value == "") {
-                                            document.getElementById("joinUsername").style.animation = "shake 0.5s";
-                                            document.getElementById("joinUsername").style.animationIterationCount = "2";
-                                            document.getElementById("joinUsername").addEventListener("animationend", () => {
-                                                document.getElementById("joinUsername").style.animation = "";
-                                            });
-                                            return;
-                                        }
                                         if (value.currentPlayers < value.maxPlayers) {
                                             value.currentPlayers += 1;
                                             set(ref(database, "rooms/" + key), value);
@@ -525,23 +580,24 @@
                                             document.getElementById("playerUsername").textContent = pos.username;
                                             getRooms();
                                             inRoom = true;
+                                            document.getElementById("player").style.bottom = "5%";
                                             document.getElementById("chatArea").innerHTML = "";
                                             currentRoomName = value.roomName;
                                             currentRoomNameKey = key;
                                             push(ref(database, "/messages"), { username: "System", text: pos.username + " has joined the room", room: currentRoomName });
                                             document.getElementById("joiningRoomName").textContent = "joining room: " + value.roomName;
+                                            set(ref(database, "/messages"), null); 
                                         }
-                                    } else {
-                                        pos.username = document.getElementById("joinUsername").value;
-                                        level = 1;
-                                        document.getElementById("joinRoom").style.display = "none";
-                                        document.getElementById("playerUsername").textContent = pos.username;
-                                        getRooms();
-                                        inRoom = true;
-                                        currentRoomName = value.roomName;
-                                        currentRoomNameKey = key;
-                                        document.getElementById("joiningRoomName").textContent = "joining room: " + value.roomName;
                                     }
+                                } else {
+                                    isSpectating = true;
+                                    level = 1;
+                                    document.getElementById("joinRoom").style.display = "none";
+                                    inRoom = true;
+                                    currentRoomName = value.roomName;
+                                    currentRoomNameKey = key;
+                                    pos.username = document.getElementById("joinUsername").value;
+                                }
                                 });
                                 newButton.style.display = "inline-block";
                                 newButton.style.marginBottom = "0px";
@@ -571,6 +627,12 @@
                     newMessage.style.fontStyle = "italic";
                     newMessage.style.color = "gray";
                 }
+                if (message.username == "Quiet") {
+                    newMessage.style.fontStyle = "italic";
+                    newMessage.style.fontWeight = "bold";
+                    newMessage.style.color = "green";
+                    newMessage.textContent = message.text;
+                }
                 if (message.text.includes("/playsound")) {
                     let command = message.text.split(' ');
                     let sound = command[1];
@@ -580,13 +642,24 @@
                     document.body.appendChild(audioElement);
                 }
                 document.getElementById("chatArea").appendChild(newMessage);
+                document.getElementById("chatArea").scrollTop = document.getElementById("chatArea").scrollHeight;
             });
+            let inputCooldown = false;
             document.getElementById("chatAreaInput").addEventListener("keydown", (event) => {
                 if (event.key == "Enter" && inRoom && document.activeElement == document.getElementById("chatAreaInput")) {
-                    if (document.getElementById("chatAreaInput").value != "") {
+                    if (document.getElementById("chatAreaInput").value != "" && !inputCooldown) {
                         push(ref(database, "/messages"), { username: pos.username, text: document.getElementById("chatAreaInput").value, room: currentRoomName });
+                        set(ref(database, "/messages"), null); 
                         document.getElementById("chatAreaInput").value = "";
+                        document.getElementById("chatAreaInput").blur();
+                        inputCooldown = true;
+                        setTimeout(() => {
+                            inputCooldown = false;
+                        }, 500);
                     }
+                }
+                if (event.key == "Enter" && inRoom && document.activeELement != document.getElementById("chatAreaInput")) {
+                    document.getElementById("chatAreaInput").focus();
                 }
             });
             gameLoop();
