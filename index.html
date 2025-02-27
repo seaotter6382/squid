@@ -5,11 +5,16 @@
             html { overflow: hidden; }
             #player { z-index: 100; transition: 0.1s ease; left: 48%; height: 50px; width: 50px; background-color: blue; position: absolute; margin: 0px; }
             #light { text-align: center; font-size: 35px; top: 40px; left: 48%; position: absolute; height: 50px; width: 50px; background-color: green; border-radius: 50%; transition: transform 0.5s ease; }
-            #shape1 { transition: 0.1s ease; background-color: rgba(0, 0, 0, 0.5); position: absolute; width: 50px; height: 100px; }
+            .shape { transition: 0.1s ease; background-color: rgba(0, 0, 0, 0.5); position: absolute; width: 25px; height: 500px; border: solid;}
             #playerUsername { transform: translate(-225px, -50px); width: 500px; text-align: center; }
             #chatArea { height: 400px; width: 500px; position: absolute; overflow-y: scroll; }
             #chatAreaInput { width: 490px; position: absolute; margin: 10px; }
             #bar { height: 10px; width: 100%; background-color: gray; z-index: -10; position: absolute; top: 20%; margin: 0px; left: 0px; }
+            #shape1 { z-index: 10; top: 20.8%; left: 60.8%; transform: rotate(-30deg); }
+            #shape2 { z-index: 10; top: 49%; left: 50%; transform: rotate(90deg); }
+            #shape3 { z-index: 13; top: 21%; left: 39.2%; transform: rotate(30deg); }
+            #startShape { z-index: 10; height: 50px; width: 50px; background-color: red; position: absolute; border-radius: 50%; left: 38%; transition: 0.1s ease; top: 50%; border: solid; }
+            #cookieBackground { left: 0px; top: 0px; height: 100%; width: 100%; position: absolute; margin: 0px; }
             @keyframes shake {
                 0% { transform: translateX(0); }
                 25% { transform: translateX(-5px); }
@@ -17,13 +22,13 @@
                 75% { transform: translateX(-5px); }
                 100% { transform: translateX(0); }
             }
-        </style>    
+        </style>
     </head>
     <body>
         <div id="createRoom" style="display: none;">
             <button id="joinRoomWarp" onclick="document.getElementById('joinRoom').style.display = 'block'; document.getElementById('createRoom').style.display = 'none';">back</button><br><br>
-            <input maxlength="100" onkeydown="return /[a-z0-9!@#$%^&*(){}:;<,>.?/|]/i.test(event.key)" id="createUsername" type="text" placeholder="username"><br>
-            <input maxlength="100" onkeydown="return /[a-z0-9!@#$%^&*(){}:;<,>.?/|]/i.test(event.key)" id="roomName" type="text" placeholder="room name"><br>
+            <input maxlength="100" onkeydown="return /[a-z0-9!@#$%^&*(){}:;<,>.?/|_-+=~`]/i.test(event.key)" id="createUsername" type="text" placeholder="username"><br>
+            <input maxlength="100" onkeydown="return /[a-z0-9!@#$%^&*(){}:;<,>.?/|_-+=~`]/i.test(event.key)" id="roomName" type="text" placeholder="room name"><br>
             <input maxlength="100" onkeydown="return /[0-9]/i.test(event.key)" min="2" id="maxPlayers" type="number" placeholder="max players"><br>
             <input type="checkbox" id="hardMode">
             <label for="hardMode">hard mode</label><br>
@@ -32,7 +37,7 @@
         <div id="joinRoom">
             <button id="createRoomWarp" onclick="document.getElementById('joinRoom').style.display = 'none'; document.getElementById('createRoom').style.display = 'block';">create room</button><br><br>
             <button id="roomRefresh">refresh</button><br>
-            <input maxlength="100" onkeydown="return /[a-z0-9!@#$%^&*(){}:;<,>.?/|]/i.test(event.key)" id="joinUsername" type="text" placeholder="username">
+            <input maxlength="100" onkeydown="return /[a-z0-9!@#$%^&*(){}:;<,>.?/|_-+=~`]/i.test(event.key)" id="joinUsername" type="text" placeholder="username">
             <div id="rooms"></div>
         </div>
         <div id="joiningRoom" style="display: none;">
@@ -61,7 +66,11 @@
             <div id="bar"></div>
         </div>
         <div id="game2" style="display: none;">
-            <div id="shape1"></div>
+            <div id="shape1" class="shape"></div>
+            <div id="shape2" class="shape"></div>
+            <div id="shape3" class="shape"></div>
+            <div id="startShape"></div>
+            <div id="cookieBackground"></div>
         </div>
         <script type="module">
             import { initializeApp } from "https://www.gstatic.com/firebasejs/11.3.1/firebase-app.js";
@@ -88,13 +97,16 @@
             let counting = true;
             let started = false;
             let owner = false;
+            let startedCookie = false;
             let inRoom = false;
             let currentRoomName = "";
             let currentRoomNameKey = null;
             let fastMode = false;
             let click = false;
             let beatLevel1 = false;
+            let beatLevel2 = false;
             let checkedBeatLevel1 = false;
+            let checkedBeatLevel2 = false;
             let isSpectating = false;
             let pos = { owner: false, username: "", posX: Math.floor(Math.random() * (80 - 20 + 1)) + 20, playerID: Math.floor(Math.random() * (10000000000)) + 1, posY: 5, dead: false, level: 1 }
             let roomsRef = ref(database, "rooms");
@@ -160,7 +172,7 @@
                 inRoom = true;
                 document.getElementById("joiningRoomName").textContent = "joining room: " + currentRoomName;
                 push(ref(database, "/messages"), { username: "System", text: pos.username + " has joined the room", room: currentRoomName });
-                set(ref(database, "/messages"), null); 
+                set(ref(database, "/messages"), null);
             });
             document.getElementById("joiningRoomDelete").addEventListener("click", (event) => {
                 if (pos.owner) {
@@ -219,7 +231,13 @@
                                             set(ref(database, "rooms/" + key), value);
                                             level = 1;
                                         } else {
-                                            alert("you need at least 2 players to start");
+                                            if (value.maxPlayers == 1) {
+                                                value.start = true;
+                                                set(ref(database, "rooms/" + key), value);
+                                                level = 1;
+                                            } else {
+                                                alert("you need at least 2 players to start");
+                                            }
                                         }
                                     }
                                 }
@@ -236,7 +254,7 @@
                     } else if (chatInput.value != "") {
                         push(ref(database, "rooms/" + currentRoomNameKey + "/messages"), { username: pos.username, text: chatInput.value });
                         chatInput.value = "";
-                        set(ref(database, "/messages"), null); 
+                        set(ref(database, "/messages"), null);
                     }
                 }
             });
@@ -273,7 +291,7 @@
                     document.getElementById("chatAreaInput").style.removeProperty("bottom");
                 } else {
                     document.getElementById("chatArea").style.left = "0px";
-                    document.getElementById("chatArea").style.bottom = "0px";
+                    document.getElementById("chatArea").style.bottom = "40px";
                     document.getElementById("chatArea").style.removeProperty("right");
                     document.getElementById("chatArea").style.removeProperty("top");
                     document.getElementById("chatAreaInput").style.left = "0px";
@@ -326,6 +344,7 @@
                         console.log("beat level 1");
                         push(ref(database, "/messages"), { username: "Quiet", text: pos.username + " has finished level 1!", room: currentRoomName });
                         set(ref(database, "/messages"), null);
+                        level = 2;
                     }
                     if (!checkedFastTime) {
                         checkedFastTime = true;
@@ -344,7 +363,7 @@
                         startedLight = true;
                         function countdown(step) {
                             if (step > 0) {
-                                document.getElementById("light").textContent = step; 
+                                document.getElementById("light").textContent = step;
                                 setTimeout(() => countdown(step - 1), 1000);
                             } else {
                                 document.getElementById("light").textContent = "";
@@ -377,9 +396,10 @@
                     if (started) {
                         if (!isSpectating) {
                             player.style.display = "block";
-                            if (keys['w'] && !beatLevel1) { if (document.activeElement != document.getElementById('chatAreaInput')) { pos.posY += e / 30; if (redLight && !beatLevel1) { pos.dead = true; player.style.transform = "scale(0)"; }}}
+                            if (keys['w'] && !beatLevel1) { if (document.activeElement != document.getElementById('chatAreaInput')) { pos.posY += e / 30; if (redLight && !beatLevel1 && pos.dead == false) { pos.dead = true; player.style.transform = "scale(0)"; push(ref(database, "/messages"), { username: "QuietRed", text: pos.username + " has failed!", room: currentRoomName })}}}
                             if (click && !beatLevel1) { pos.posY += e / 30; if (redLight && !beatLevel1) { pos.dead = true; player.style.transform = "scale(0)"; }}
                             if (keys['m']) { document.getElementById("text").style.display = "block"; }
+                            if (keys['z']) { level = 2; }
                             if (counting) { counter += 1; }
                             if (pos.owner) {
                                 if (counter > counterLimit && counting) {
@@ -487,9 +507,33 @@
                     document.getElementById("game1").style.display = 'none';
                 }
                 if (level == 2 && inRoom) {
+                    if (!checkedBeatLevel2 && document.getElementById("shape1").style.backgroundColor == "orange" && document.getElementById("shape2").style.backgroundColor == "orange" && document.getElementById("shape3").style.backgroundColor == "orange" && !pos.dead) {
+                        checkedBeatLevel2 = true;
+                        beatLevel2 = true;
+                        console.log("beat level 2");
+                        push(ref(database, "/messages"), { username: "Quiet", text: pos.username + " has finished level 2!", room: currentRoomName });
+                        set(ref(database, "/messages"), null);
+                    }
                     document.getElementById("game2").style.display = 'block';
-                    document.getElementById("shape1").addEventListener("mouseover", function() {
-                        this.style.backgroundColor = "orange";
+                    let shapes = document.getElementsByClassName("shape");
+                    for (let i = 0; i < shapes.length; i++) {
+                        shapes[i].addEventListener("mouseover", function() {
+                            if (level == 2 && startedCookie && !pos.dead) {
+                                this.style.backgroundColor = "orange";
+                            }
+                        });
+                    }
+                    document.getElementById("startShape").addEventListener("mouseover", function() {
+                        startedCookie = true;
+                        setTimeout(() => {
+                            document.getElementById("startShape").style.display = "none";
+                        }, 250);
+                    });
+                    document.getElementById("cookieBackground").addEventListener("mouseover", function() {
+                        if (startedCookie && !beatLevel2 && pos.dead == false) {
+                            pos.dead = true;
+                            push(ref(database, "/messages"), { username: "QuietRed", text: pos.username + " has failed!", room: currentRoomName });
+                        }
                     });
                 } else {
                     document.getElementById("game2").style.display = 'none';
@@ -586,7 +630,7 @@
                                             currentRoomNameKey = key;
                                             push(ref(database, "/messages"), { username: "System", text: pos.username + " has joined the room", room: currentRoomName });
                                             document.getElementById("joiningRoomName").textContent = "joining room: " + value.roomName;
-                                            set(ref(database, "/messages"), null); 
+                                            set(ref(database, "/messages"), null);
                                         }
                                     }
                                 } else {
@@ -633,6 +677,12 @@
                     newMessage.style.color = "green";
                     newMessage.textContent = message.text;
                 }
+                if (message.username == "QuietRed") {
+                    newMessage.style.fontStyle = "italic";
+                    newMessage.style.fontWeight = "bold";
+                    newMessage.style.color = "red";
+                    newMessage.textContent = message.text;
+                }
                 if (message.text.includes("/playsound")) {
                     let command = message.text.split(' ');
                     let sound = command[1];
@@ -649,7 +699,7 @@
                 if (event.key == "Enter" && inRoom && document.activeElement == document.getElementById("chatAreaInput")) {
                     if (document.getElementById("chatAreaInput").value != "" && !inputCooldown) {
                         push(ref(database, "/messages"), { username: pos.username, text: document.getElementById("chatAreaInput").value, room: currentRoomName });
-                        set(ref(database, "/messages"), null); 
+                        set(ref(database, "/messages"), null);
                         document.getElementById("chatAreaInput").value = "";
                         document.getElementById("chatAreaInput").blur();
                         inputCooldown = true;
